@@ -9,7 +9,6 @@ const useBiscuitMachineEvents = setModel => {
 
         connection.on('state_changed', data => {
             const res = JSON.parse(data);
-            console.log(res.State);
             setModel(prevModel => {
                 return {
                     ...prevModel,
