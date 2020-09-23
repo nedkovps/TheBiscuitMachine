@@ -45,7 +45,7 @@ namespace TheBiscuitMachine.Logic.Models
             RegisterHandler<TemperatureChangedEvent>(TemperatureChangedEventHandler);
             RegisterHandler<OvenHeatedEvent>(OvenHeatedEventHandler);
             RegisterHandler<MotorActivatedEvent>(Conveyor.MotorActivatedEventHandler);
-            RegisterHandler<ConveyorMovedEvent>(ConveyorMovedEventHandler);
+            RegisterHandler<ConveyorPositionReachedEvent>(ConveyorPositionReachedEventHandler);
             RegisterHandler<ProductionFinishedEvent>(Oven.ProductionFinishedEventHandler);
             RegisterHandler<ProductionFinishedEvent>(ProductionFinishedEventHandler);
         }
@@ -62,6 +62,8 @@ namespace TheBiscuitMachine.Logic.Models
             } 
         }
 
+        internal Conveyor Conveyor { get; private set; }
+
         internal Motor Motor { get; private set; }
 
         internal Extruder Extruder { get; private set; }
@@ -70,13 +72,10 @@ namespace TheBiscuitMachine.Logic.Models
 
         internal Oven Oven { get; private set; }
 
-        internal Conveyor Conveyor { get; private set; }
-
         public override async Task TurnOn()
         {
             if (!State.IsPaused)
             {
-                ResetMachine();
                 await StartMachine();
             }
             else
@@ -97,7 +96,7 @@ namespace TheBiscuitMachine.Logic.Models
         public override async Task Pause()
         {
             State = State.Pause();
-            await StopConveyor();
+            await Conveyor.Stop();
         }
 
         private void ResetMachine()
@@ -121,55 +120,52 @@ namespace TheBiscuitMachine.Logic.Models
                 Conveyor.RaiseEvent(new ProductionFinishedEvent());
             }
             _machineTokenSource.Cancel();
+            if (State.IsPaused && State.IsProductionStarted)
+            {
+                State = State.Resume();
+                await Conveyor.ReachNextPosition();
+            }
+            if (State.IsProductionStarted)
+            {
+                State = State.TurnedOff();
+            }
             await Task.Delay(0);
-
         }
 
         private void RunMachine()
         {
             _machineTokenSource = new CancellationTokenSource();
             var token = _machineTokenSource.Token;
-            
-                Task.Run(async () =>
+            Task.Run(async () =>
+            {
+                try
                 {
-                    try
+                    await Oven.TurnOn();
+                    while (true)
                     {
-                        await Oven.TurnOn();
-                        while (true)
+                        HandleEvents();
+                        if (token.IsCancellationRequested && (!State.IsProductionStarted || State.IsProductionFinished))
                         {
-                            HandleEvents();
-                            if (token.IsCancellationRequested)
-                            {
-                                if (State.IsPaused && State.IsProductionStarted)
-                                {
-                                    State = State.Resume();
-                                    await ActivateMotor();
-                                }
-                                if (State.IsProductionStarted && State.IsOn)
-                                {
-                                    State = State.TurnedOff();
-                                }
-                                if (State.IsProductionFinished)
-                                {
-                                    token.ThrowIfCancellationRequested();
-                                }
-                            }
-                            await Task.Delay(100);
+                            token.ThrowIfCancellationRequested();
                         }
+                        await Task.Delay(100);
                     }
-                    catch (OperationCanceledException)
-                    {
-                        _machineTokenSource.Dispose();
-                        _machineTokenSource = null;
-                    }
-                }, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    HandleEvents();
+                    _machineTokenSource.Dispose();
+                    _machineTokenSource = null;
+                    ResetMachine();
+                }
+            }, token);
         }
 
         private async Task StartOrResumeProduction()
         {
             if (State.IsProductionStarted)
             {
-                await ActivateMotor();
+                await Conveyor.ReachNextPosition();
             }
             else
             {
@@ -213,20 +209,13 @@ namespace TheBiscuitMachine.Logic.Models
             }
         }
 
-        private async Task ConveyorMovedEventHandler(object domainEvent)
+        private async Task ConveyorPositionReachedEventHandler(object domainEvent)
         {
-            ConveyorMovedEvent conveyorMovedEvent = (ConveyorMovedEvent)domainEvent;
-            if (conveyorMovedEvent.ConveyorPositionRatio < 1)
-            {
-                return;
-            }
-
             await ExecuteProductionCycle();
         }
 
         private async Task ExecuteProductionCycle()
         {
-            MoveConveyor();
             var tasks = new List<Task>
             {
                 BakeBiscuits(),
@@ -248,20 +237,6 @@ namespace TheBiscuitMachine.Logic.Models
             {
                 await Conveyor.ReachNextPosition();
             }
-        }
-
-        private void MoveConveyor()
-        {
-            if (Conveyor.Slots[5] != null && Conveyor.Slots[5].State == BiscuitState.Baked)
-            {
-                Conveyor.CollectBiscuit();
-            }
-
-            Conveyor.Slots.Insert(0, null);
-            Conveyor.Slots.RemoveAt(6);
-
-            Conveyor.RaiseEvent(new ConveyorPositionReachedEvent(Conveyor.Slots
-                .Select(x => x != null ? x.State.ToString() : "Empty").ToList()));
         }
 
         private async Task ExtractBiscuit()
@@ -305,16 +280,6 @@ namespace TheBiscuitMachine.Logic.Models
             {
                 Oven.RaiseEvent(new BiscuitBakedEvent(bakedBiscuits));
             }
-        }
-
-        private async Task ActivateMotor()
-        {
-            await Conveyor.ReachNextPosition();
-        }
-
-        private async Task StopConveyor()
-        {
-            await Conveyor.Stop();
         }
 
         private async Task ProductionFinishedEventHandler(object domainEvent)

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TheBiscuitMachine.Logic.Common;
@@ -27,7 +28,7 @@ namespace TheBiscuitMachine.Logic.Models
         internal void SetMotorPulsesToReachPosition(int motorPulsesToReachPosition)
         {
             _motorPulsesToReachPosition = motorPulsesToReachPosition;
-            _motorPulsesSinceLastPosition = motorPulsesToReachPosition - 1;
+            _motorPulsesSinceLastPosition = 0;
         }
 
         internal void Reset()
@@ -35,6 +36,7 @@ namespace TheBiscuitMachine.Logic.Models
             _motorPulsesSinceLastPosition = 0;
             TotalBiscuitsCollected = 0;
             Slots = new List<Biscuit> { null, null, null, null, null, null };
+            Motor.Reset();
 
         }
 
@@ -58,16 +60,26 @@ namespace TheBiscuitMachine.Logic.Models
         internal async Task MotorActivatedEventHandler(object domainEvent)
         {
             _motorPulsesSinceLastPosition++;
+            RaiseEvent(new ConveyorMovedEvent(_motorPulsesSinceLastPosition, _motorPulsesToReachPosition));
             if (_motorPulsesSinceLastPosition == _motorPulsesToReachPosition)
             {
-                await Motor.TurnOff();
-                RaiseEvent(new ConveyorMovedEvent(_motorPulsesSinceLastPosition, _motorPulsesToReachPosition));
+                await Stop();
+                UpdateSlots();
                 _motorPulsesSinceLastPosition = 0;
             }
-            else
+        }
+
+        private void UpdateSlots()
+        {
+            if (Slots[5] != null && Slots[5].State == BiscuitState.Baked)
             {
-                RaiseEvent(new ConveyorMovedEvent(_motorPulsesSinceLastPosition, _motorPulsesToReachPosition));
+                CollectBiscuit();
             }
+
+            Slots.Insert(0, null);
+            Slots.RemoveAt(6);
+
+            RaiseEvent(new ConveyorPositionReachedEvent(Slots.Select(x => x != null ? x.State.ToString() : "Empty").ToList()));
         }
     }
 }

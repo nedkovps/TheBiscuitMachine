@@ -11,16 +11,20 @@ namespace TheBiscuitMachine.Logic.Models
     internal class Motor : Element
     {
         private CancellationTokenSource _tokenSource;
+        private bool _isRunning = false;
 
         internal async Task TurnOn()
         {
-            await Task.Delay(200);
+            await Task.Delay(0);
             RunMotor();
         }
 
         internal async Task TurnOff()
         {
-            _tokenSource?.Cancel();
+            if (_isRunning)
+            {
+                _tokenSource.Cancel();
+            }
             await Task.Delay(0);
         }
 
@@ -30,21 +34,23 @@ namespace TheBiscuitMachine.Logic.Models
             var token = _tokenSource.Token;
             Task.Run(async () =>
             {
-                try
+                while (true)
                 {
-                    while (true)
-                    {
-                        token.ThrowIfCancellationRequested();
-                        RaiseEvent(new MotorActivatedEvent());
-                        await Task.Delay(200);
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    _tokenSource.Dispose();
-                    _tokenSource = null;
+                    token.ThrowIfCancellationRequested();
+                    RaiseEvent(new MotorActivatedEvent());
+                    await Task.Delay(300);
                 }
             }, token);
+            _isRunning = true;
+        }
+
+        internal void Reset()
+        {
+            if (_tokenSource != null)
+            {
+                _tokenSource.Dispose();
+                _tokenSource = null;
+            }
         }
     }
 }

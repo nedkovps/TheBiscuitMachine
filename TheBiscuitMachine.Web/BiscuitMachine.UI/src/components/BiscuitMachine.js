@@ -47,7 +47,7 @@ export const BiscuitMachine = () => {
 
     const turnOn = async () => {
         await BiscuitMachineAPIClient.turnOn();
-        const collectedBiscuits = !model.isFinishingProduction ? model.collectedBiscuits : 0;
+        const collectedBiscuits = model.isOn ? model.collectedBiscuits : 0;
         setModel(prevModel => { return { ...prevModel, isOn: true, isPaused: false, isFinishingProduction: false, collectedBiscuits: collectedBiscuits } });
     }
 

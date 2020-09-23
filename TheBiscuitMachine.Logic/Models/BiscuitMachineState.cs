@@ -75,7 +75,7 @@ namespace TheBiscuitMachine.Logic.Models
             IsPaused = false,
             IsOvenHeated = false,
             IsProductionStarted = false,
-            IsProductionFinished = true
+            IsProductionFinished = false
         };
 
         private static readonly BiscuitMachineState FinishingProduction = new BiscuitMachineState
