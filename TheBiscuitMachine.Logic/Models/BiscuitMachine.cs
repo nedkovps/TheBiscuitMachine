@@ -58,7 +58,7 @@ namespace TheBiscuitMachine.Logic.Models
             private set
             {
                 _state = value;
-                Conveyor.RaiseEvent(new MachineStateChangedEvent(_state));
+                RaiseEvent(new MachineStateChangedEvent(_state));
             } 
         }
 
@@ -117,7 +117,7 @@ namespace TheBiscuitMachine.Logic.Models
         {
             if (!State.IsProductionStarted)
             {
-                Conveyor.RaiseEvent(new ProductionFinishedEvent());
+                RaiseEvent(new ProductionFinishedEvent());
             }
             _machineTokenSource.Cancel();
             if (State.IsPaused && State.IsProductionStarted)
@@ -229,7 +229,7 @@ namespace TheBiscuitMachine.Logic.Models
 
             if (_machineTokenSource.Token.IsCancellationRequested && !Conveyor.Slots.Any(x => x != null))
             {
-                Conveyor.RaiseEvent(new ProductionFinishedEvent());
+                RaiseEvent(new ProductionFinishedEvent());
                 return;
             }
 

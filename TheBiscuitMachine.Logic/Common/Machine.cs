@@ -8,12 +8,12 @@ using TheBiscuitMachine.Logic.Events;
 
 namespace TheBiscuitMachine.Logic.Common
 {
-    public abstract class Machine : IMachine
+    public abstract class Machine : Element, IMachine
     {
         private readonly IEventDispatcher _eventDispatcher;
         private readonly ICollection<IElement> elements;
 
-        protected Machine(IEventDispatcher eventDispatcher)
+        protected Machine(IEventDispatcher eventDispatcher) : base()
         {
             _eventDispatcher = eventDispatcher;
             InitElements();
@@ -22,6 +22,7 @@ namespace TheBiscuitMachine.Logic.Common
                 .Where(x => typeof(IElement).IsAssignableFrom(x.PropertyType))
                 .Select(x => (IElement)x.GetValue(this))
                 .ToList();
+            elements.Add(this);
         }
 
         public IReadOnlyCollection<IElement> Elements => elements.ToList();

@@ -6,7 +6,7 @@ using TheBiscuitMachine.Logic.Events;
 
 namespace TheBiscuitMachine.Logic.Common
 {
-    public interface IMachine
+    public interface IMachine : IElement
     {
         IReadOnlyCollection<IElement> Elements { get; }
 
