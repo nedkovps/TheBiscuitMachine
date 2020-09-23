@@ -51,6 +51,7 @@ namespace TheBiscuitMachine.Logic.Models
                 _tokenSource.Dispose();
                 _tokenSource = null;
             }
+            _isRunning = false;
         }
     }
 }
