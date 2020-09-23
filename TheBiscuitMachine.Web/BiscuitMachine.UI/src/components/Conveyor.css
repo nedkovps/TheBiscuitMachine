@@ -1,0 +1,11 @@
+﻿.conveyor {
+    height: 200px;
+    width: 1200px;
+    border: 1px solid;
+    position: absolute;
+}
+
+.conveyor-wrapper {
+    height: 200px;
+    width: 1200px;
+}
