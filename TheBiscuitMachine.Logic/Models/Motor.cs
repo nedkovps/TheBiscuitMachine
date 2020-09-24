@@ -25,20 +25,32 @@ namespace TheBiscuitMachine.Logic.Models
             {
                 _tokenSource.Cancel();
             }
-            await Task.Delay(0);
+            await Task.Delay(500);
         }
 
         private void RunMotor()
         {
-            _tokenSource = new CancellationTokenSource();
+            if (_tokenSource == null)
+            {
+                _tokenSource = new CancellationTokenSource();
+            }
             var token = _tokenSource.Token;
             Task.Run(async () =>
             {
-                while (true)
+                try
                 {
-                    token.ThrowIfCancellationRequested();
-                    RaiseEvent(new MotorActivatedEvent());
-                    await Task.Delay(300);
+                    while (true)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        RaiseEvent(new MotorActivatedEvent());
+                        await Task.Delay(250);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    _tokenSource.Dispose();
+                    _tokenSource = null;
+                    _isRunning = false;
                 }
             }, token);
             _isRunning = true;
